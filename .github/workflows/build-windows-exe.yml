@@ -1,0 +1,50 @@
+name: Build Windows Standalone Executable (WareHousePro.exe)
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install PyQt5 pyinstaller
+
+      - name: Verify Architecture & Core Integrity
+        working-directory: Source
+        run: |
+          python -c "import database, security, exceptions; print('[OK] Core modules validated.')"
+
+      - name: Build Standalone Executable (PyInstaller)
+        working-directory: Source
+        run: |
+          python -m PyInstaller --noconfirm --clean --onefile --windowed --name WareHousePro --hidden-import PyQt5.sip --hidden-import PyQt5.QtCore --hidden-import PyQt5.QtGui --hidden-import PyQt5.QtWidgets main.py
+
+      - name: Compute Checksums
+        working-directory: Source/dist
+        run: |
+          Get-FileHash -Algorithm SHA256 WareHousePro.exe | Out-File -FilePath checksums.txt
+          Get-Content checksums.txt
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: WareHousePro-Windows-x64
+          path: Source/dist/WareHousePro.exe
+          if-no-files-found: error
